@@ -2,17 +2,25 @@ from scipy import stats
 import pandas
 import matplotlib.pyplot as plt #plotting
 import numpy as np
-from sklearn.metrics import precision_score #classifier performance
-from sklearn.metrics import recall_score #classifier performance
 from sklearn.calibration import CalibratedClassifierCV, calibration_curve #classifier calibration
 from sklearn.metrics import brier_score_loss
+from sklearn.metrics import make_scorer, accuracy_score, precision_score, recall_score, f1_score
+from sklearn.model_selection import cross_val_score
 
-def guass_fit_dist(pd_series, hist_bins):
-	actual_count, actual_bins, ignored = plt.hist(pd_series, bins = hist_bins)
+
+def guass_fit_dist(pd_series, hist_bins, ax_opt=None):
+	if ax_opt != None:
+		actual_count, actual_bins, ignored = ax_opt.hist(pd_series, bins = hist_bins)
+	else:
+		actual_count, actual_bins, ignored = plt.hist(pd_series, bins = hist_bins)
 
 	param = stats.norm.fit(pd_series)
 	gprob = np.diff(stats.norm.cdf(actual_bins, loc=param[0], scale=param[1]))
-	plt.plot(actual_bins[1:],gprob*pd_series.size, 'r-')
+	if ax_opt != None:
+		ax_opt.plot(actual_bins[1:],gprob*pd_series.size, 'r-')
+		
+	else:
+		plt.plot(actual_bins[1:],gprob*pd_series.size, 'r-')
 	#Perform a chi squared test to detemine goodness of fit of guassian on user's ratings
 	nch, npval = stats.chisquare(actual_count, gprob*pd_series.size)
 	
@@ -64,4 +72,18 @@ def print_classifier_metrics(model, x_test, y_test):
 	print('Accuracy of model: {:.2}'.format(model.score(x_test, y_test)))
 	print('Recall Score: {:.2}'.format(recall_score(y_test,y_hat)))
 	print('Precision Score: {:.2}'.format(precision_score(y_test,y_hat)))
+	return()
+
+def print_kfold_classifier_metrics(model, cv_builder, x, y):
+	
+	scoring_metrics = ['accuracy_score', 'precision_score', 'recall_score', 'f1_score']
+	
+	results={}
+	for i in scoring_metrics:
+		results[i] = cross_val_score(estimator=model, X=x, y=y, cv=cv_builder, scoring=make_scorer(eval(i)))
+	
+	print('Accuracy of model: mean= {:.2}, std. dev. = {:.2}'.format(np.mean(results['accuracy_score']), np.std(results['accuracy_score'])))
+	print('Precision of model: mean= {:.2}, std. dev. = {:.2}'.format(np.mean(results['precision_score']), np.std(results['precision_score'])))
+	print('Recall of model: mean= {:.2}, std. dev. = {:.2}'.format(np.mean(results['recall_score']), np.std(results['recall_score'])))
+	
 	return()
